@@ -4,6 +4,14 @@
 
 本项目适合需要频繁切换不同账号、测试不同套餐额度、或对 `Codex` 本地登录状态做备份管理的用户。
 
+## 作者信息
+
+- 作者：`XinTycd`
+- 项目名称：`XinT-Codex-Account-Switcher`
+- 项目协议：`Apache License 2.0`
+- 版权归属：`Copyright (c) 2026 XinTian-Tech`
+
+
 ## 项目简介
 
 `XinT-Codex-Account-Switcher` 的核心思路不是多开客户端，而是对本机 `~/.codex` 目录中的关键认证文件做“档案化快照”管理。
@@ -16,13 +24,6 @@
 4. 按需重启 `Codex`
 
 这样可以在不改动 `Codex` 自身逻辑的前提下，实现多个账号之间的快速切换。
-
-## 作者信息
-
-- 作者：`XinTycd`
-- 项目名称：`XinT-Codex-Account-Switcher`
-- 项目协议：`Apache License 2.0`
-- 版权归属：`Copyright (c) 2026 XinTian-Tech`
 
 ## 开源说明
 
