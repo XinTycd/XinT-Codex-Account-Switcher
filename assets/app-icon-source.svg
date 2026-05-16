@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="196" y1="164" x2="828" y2="870" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#163A63"/>
+      <stop offset="0.56" stop-color="#0D2643"/>
+      <stop offset="1" stop-color="#091728"/>
+    </linearGradient>
+    <radialGradient id="orangeGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(782 206) rotate(140.614) scale(286.336 236.231)">
+      <stop stop-color="#F29318" stop-opacity="0.54"/>
+      <stop offset="1" stop-color="#F29318" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blueGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(210 822) rotate(-28.9543) scale(352.231 305.541)">
+      <stop stop-color="#67B2FF" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#67B2FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ringBlue" x1="240" y1="770" x2="776" y2="324" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#80C0FF"/>
+      <stop offset="1" stop-color="#2C6EB7"/>
+    </linearGradient>
+    <linearGradient id="ringOrange" x1="736" y1="240" x2="366" y2="688" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFC062"/>
+      <stop offset="1" stop-color="#F29318"/>
+    </linearGradient>
+    <filter id="innerGlass" x="86" y="86" width="852" height="852" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dx="-12" dy="-12"/>
+      <feGaussianBlur stdDeviation="18"/>
+      <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 0.992157 0 0 0 0 0.956863 0 0 0 0.08 0"/>
+      <feBlend mode="screen" in2="shape" result="effect1_innerShadow_1_2"/>
+    </filter>
+    <filter id="discShadow" x="96" y="108" width="832" height="832" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="24"/>
+      <feGaussianBlur stdDeviation="24"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.0627451 0 0 0 0 0.129412 0 0 0 0.28 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_2"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_2" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#discShadow)">
+    <circle cx="512" cy="488" r="368" fill="url(#bg)"/>
+    <circle cx="512" cy="488" r="368" fill="url(#orangeGlow)"/>
+    <circle cx="512" cy="488" r="368" fill="url(#blueGlow)"/>
+  </g>
+  <g filter="url(#innerGlass)">
+    <circle cx="512" cy="488" r="340" fill="white" fill-opacity="0.025"/>
+    <circle cx="512" cy="488" r="339.25" stroke="white" stroke-opacity="0.08" stroke-width="1.5"/>
+  </g>
+
+  <path d="M273 710C217.989 652.873 184 575.112 184 489.5C184 313.609 326.609 171 502.5 171C595.112 171 678.49 210.503 736.5 273.57" stroke="url(#ringBlue)" stroke-width="48" stroke-linecap="round"/>
+  <path d="M736.5 273.57L742.836 209.843L685.013 237.36" stroke="url(#ringBlue)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M753 313C808.011 370.127 842 447.888 842 533.5C842 709.391 699.391 852 523.5 852C430.888 852 347.51 812.497 289.5 749.43" stroke="url(#ringOrange)" stroke-width="48" stroke-linecap="round"/>
+  <path d="M289.5 749.43L283.164 813.157L340.987 785.64" stroke="url(#ringOrange)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g opacity="0.22" transform="translate(318 330) scale(1.94)">
+    <polygon fill="#08121F" points="28.32 25.61 73.05 25.45 120.18 83.88 123.33 123.9 205.56 225.85 164.02 225.85 101.93 148.86 97.26 110.95 28.32 25.61"/>
+    <polygon fill="#08121F" points="138.3 106.35 207.54 25.61 129.98 25.61 129.94 45.74 152.48 45.74 138.3 106.35"/>
+    <polygon fill="#08121F" points="0 225.78 35.95 225.78 94.19 157.88 76.3 135.7 0 225.78"/>
+    <path fill="#08121F" d="M129.98,25.61q-21.76,0-21.76,0v20.13h21.72l.04-20.13Z"/>
+  </g>
+
+  <g transform="translate(302 296) scale(1.94)">
+    <polygon fill="#F29318" points="28.32 25.61 73.05 25.45 120.18 83.88 123.33 123.9 205.56 225.85 164.02 225.85 101.93 148.86 97.26 110.95 28.32 25.61"/>
+    <polygon fill="#2C6EB7" points="138.3 106.35 207.54 25.61 129.98 25.61 129.94 45.74 152.48 45.74 138.3 106.35"/>
+    <polygon fill="#76B6FF" points="0 225.78 35.95 225.78 94.19 157.88 76.3 135.7 0 225.78"/>
+    <path fill="#EEF4FB" d="M129.98,25.61q-21.76,0-21.76,0v20.13h21.72l.04-20.13Z"/>
+  </g>
+</svg>

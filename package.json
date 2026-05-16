@@ -1,0 +1,32 @@
+{
+  "name": "codex-account-switcher",
+  "version": "0.1.0",
+  "description": "Windows desktop switcher for Codex app accounts",
+  "author": "Codex",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "package": "electron-builder --win portable",
+    "generate:icon": "powershell -ExecutionPolicy Bypass -File scripts/generate-app-icon.ps1"
+  },
+  "build": {
+    "appId": "com.xint.codex-account-switcher",
+    "productName": "XinT Codex Account Switcher",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/app-icon.ico",
+      "target": [
+        "portable"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.12"
+  }
+}
