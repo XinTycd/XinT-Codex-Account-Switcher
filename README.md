@@ -1,4 +1,4 @@
-# XinT-Codex-Account-Switcher
+# 芯添Codex账号切换器（XinT-Codex-Account-Switcher）
 
 一个面向 Windows 的 `Codex` 账号档案切换器，用于管理多个 `Codex / ChatGPT` 登录状态，并在不同账号之间快速切换。
 
