@@ -194,7 +194,7 @@ npm run package
 
 默认输出目录：
 
-- [dist](</E:/源码/XinT-Codex-Account-Switcher/dist>)
+- dist
 
 ## 测试覆盖
 
