@@ -11,6 +11,10 @@
 - 项目协议：`Apache License 2.0`
 - 版权归属：`Copyright (c) 2026 XinTian-Tech`
 
+## 开源说明
+
+本项目不允许任何商业行为，仅允许用户学习、测试使用，因违规使用导致账号异常均与本项目作者无关。
+进行二次开发需保留`XinT-Codex-Account-Switcher` `XinT` `XinTian-Tech` 等字样。
 
 ## 项目简介
 
@@ -24,11 +28,6 @@
 4. 按需重启 `Codex`
 
 这样可以在不改动 `Codex` 自身逻辑的前提下，实现多个账号之间的快速切换。
-
-## 开源说明
-
-本项目不允许任何商业行为，仅允许用户学习、测试使用，因违规使用导致账号异常均与本项目作者无关。
-进行二次开发需保留`XinT-Codex-Account-Switcher` `XinT` `XinTian-Tech` 等字样。
 
 ## 功能特性
 
