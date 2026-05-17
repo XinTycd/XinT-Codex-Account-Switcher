@@ -9,7 +9,7 @@
 - 作者：`XinTycd`
 - 项目名称：`XinT-Codex-Account-Switcher`
 - 当前版本：`v1.0.0`
-- 项目协议：`MIT`
+- 项目协议：`Apache License 2.0`
 
 ## 开源说明
 
