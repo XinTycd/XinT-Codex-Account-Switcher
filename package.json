@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Windows desktop switcher for Codex app accounts",
   "author": "XinTycd",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& \\\"$env:USERPROFILE\\\\go\\\\bin\\\\wails.exe\\\" dev\"",
     "dev:web": "npm --prefix frontend run dev",
