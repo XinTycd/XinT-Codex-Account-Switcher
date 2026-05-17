@@ -6,6 +6,11 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const execFileAsync = promisify(execFile);
+const APPX_TARGET_CACHE_TTL_MS = 5 * 60 * 1000;
+let appxLaunchTargetCache = {
+  value: null,
+  fetchedAt: 0
+};
 
 async function runPowerShell(command) {
   const { stdout } = await execFileAsync(
@@ -51,6 +56,13 @@ async function stopCodexProcesses() {
 }
 
 async function resolveAppxLaunchTarget() {
+  if (
+    appxLaunchTargetCache.value
+    && Date.now() - appxLaunchTargetCache.fetchedAt < APPX_TARGET_CACHE_TTL_MS
+  ) {
+    return appxLaunchTargetCache.value;
+  }
+
   const output = await runPowerShell(`
     $pkg = Get-AppxPackage -Name OpenAI.Codex | Select-Object -First 1 InstallLocation, PackageFamilyName
     if ($pkg) { $pkg | ConvertTo-Json }
@@ -65,24 +77,32 @@ async function resolveAppxLaunchTarget() {
 
   try {
     await fs.access(exePath);
-    return {
-      kind: 'path',
-      target: exePath
+    appxLaunchTargetCache = {
+      fetchedAt: Date.now(),
+      value: {
+        kind: 'path',
+        target: exePath
+      }
     };
+    return appxLaunchTargetCache.value;
   } catch {
     if (pkg.PackageFamilyName) {
-      return {
-        kind: 'appx',
-        target: `shell:AppsFolder\\${pkg.PackageFamilyName}!App`
+      appxLaunchTargetCache = {
+        fetchedAt: Date.now(),
+        value: {
+          kind: 'appx',
+          target: `shell:AppsFolder\\${pkg.PackageFamilyName}!App`
+        }
       };
+      return appxLaunchTargetCache.value;
     }
   }
 
   return null;
 }
 
-async function resolveLaunchTarget() {
-  const running = await getRunningCodexProcesses();
+async function resolveLaunchTarget(runningProcesses = null) {
+  const running = runningProcesses ?? await getRunningCodexProcesses();
   const direct = running.find((item) => item.Path && item.Path.endsWith('Codex.exe'));
   if (direct) {
     return {
@@ -110,8 +130,8 @@ async function launchCodex() {
 }
 
 async function getCodexRuntimeSummary() {
-  const launchTarget = await resolveLaunchTarget();
   const running = await getRunningCodexProcesses();
+  const launchTarget = await resolveLaunchTarget(running);
 
   return {
     runningCount: running.length,

@@ -1,5 +1,8 @@
 'use strict';
 
+import './wails-bridge.js';
+import './styles.css';
+
 const state = {
   busy: false,
   busyMode: null,

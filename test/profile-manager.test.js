@@ -113,6 +113,38 @@ test('apply profile restores snapshot and writes backup', async () => {
   assert.equal(backups.length, 1);
 });
 
+test('list profiles uses directory name as stable operation id', async () => {
+  const dirs = await makeTempWorkspace();
+  await writeState(dirs.codexHome, '8');
+  const created = await createProfileFromCurrent({
+    codexHome: dirs.codexHome,
+    profilesRoot: dirs.profilesRoot,
+    name: '兼容旧档案'
+  });
+
+  const metadataPath = path.join(dirs.profilesRoot, created.id, 'metadata.json');
+  const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+  await fs.writeFile(
+    metadataPath,
+    JSON.stringify({ ...metadata, id: 'stale-metadata-id' }, null, 2),
+    'utf8'
+  );
+
+  await writeState(dirs.codexHome, '9');
+  const listed = await listProfiles(dirs.profilesRoot, dirs.codexHome);
+
+  assert.equal(listed.profiles[0].id, created.id);
+
+  const result = await applyProfile({
+    codexHome: dirs.codexHome,
+    profilesRoot: dirs.profilesRoot,
+    backupsRoot: dirs.backupsRoot,
+    profileId: listed.profiles[0].id
+  });
+
+  assert.equal(result.profile.id, created.id);
+});
+
 test('rename profile updates stored metadata', async () => {
   const dirs = await makeTempWorkspace();
   await writeState(dirs.codexHome, '3');

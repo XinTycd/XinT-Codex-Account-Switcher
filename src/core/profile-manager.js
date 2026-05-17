@@ -66,26 +66,29 @@ async function safeReadFile(filePath) {
   }
 }
 
-async function computeFingerprint(dirPath) {
+async function computeFingerprint(dirPath, trackedFiles = TRACKED_FILES) {
   const hash = crypto.createHash('sha256');
+  const contents = await Promise.all(
+    trackedFiles.map((relativePath) => safeReadFile(path.join(dirPath, relativePath)))
+  );
 
-  for (const relativePath of TRACKED_FILES) {
+  trackedFiles.forEach((relativePath, index) => {
     hash.update(`FILE:${relativePath}\n`);
-    const content = await safeReadFile(path.join(dirPath, relativePath));
+    const content = contents[index];
     if (content) {
       hash.update(content);
     } else {
       hash.update('MISSING');
     }
     hash.update('\n');
-  }
+  });
 
   return hash.digest('hex');
 }
 
-async function summarizeState(codexHome) {
+async function summarizeState(codexHome, { trackedFiles = TRACKED_FILES } = {}) {
   const auth = await readAuthFile(codexHome);
-  const fingerprint = await computeFingerprint(codexHome);
+  const fingerprint = await computeFingerprint(codexHome, trackedFiles);
   const identity = getAuthIdentity(auth);
 
   return {
@@ -102,30 +105,26 @@ async function summarizeState(codexHome) {
   };
 }
 
-async function listProfiles(profilesRoot, codexHome) {
+async function listProfiles(profilesRoot, codexHome, { trackedFiles = TRACKED_FILES } = {}) {
   await ensureDir(profilesRoot);
 
-  const current = await summarizeState(codexHome);
+  const current = await summarizeState(codexHome, { trackedFiles });
   const entries = await fs.readdir(profilesRoot, { withFileTypes: true });
-  const profiles = [];
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
+  const profileReads = entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
     const profileDir = path.join(profilesRoot, entry.name);
     const metadata = await readJson(path.join(profileDir, 'metadata.json'));
     if (!metadata) {
-      continue;
+      return null;
     }
 
-    profiles.push({
+    return {
       ...metadata,
+      id: entry.name,
       sortOrder: Number.isFinite(metadata.sortOrder) ? metadata.sortOrder : Number.MAX_SAFE_INTEGER,
       isActive: metadata.identityKey != null && metadata.identityKey === current.identityKey
-    });
-  }
+    };
+  });
+  const profiles = (await Promise.all(profileReads)).filter(Boolean);
 
   profiles.sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) {
@@ -153,10 +152,10 @@ async function createUniqueProfileId(profilesRoot, name) {
   return candidate;
 }
 
-async function copyTrackedFiles(sourceDir, targetDir) {
+async function copyTrackedFiles(sourceDir, targetDir, { trackedFiles = TRACKED_FILES } = {}) {
   await ensureDir(targetDir);
 
-  for (const relativePath of TRACKED_FILES) {
+  await Promise.all(trackedFiles.map(async (relativePath) => {
     const fromPath = path.join(sourceDir, relativePath);
     const toPath = path.join(targetDir, relativePath);
     const exists = await pathExists(fromPath);
@@ -167,7 +166,7 @@ async function copyTrackedFiles(sourceDir, targetDir) {
     } else if (await pathExists(toPath)) {
       await fs.rm(toPath, { force: true });
     }
-  }
+  }));
 }
 
 async function saveProfileMetadata(profileDir, metadata) {
@@ -203,8 +202,8 @@ function buildMetadataFromSummary({ id, name, summary, previousMetadata = null }
   };
 }
 
-async function createProfileFromCurrent({ codexHome, profilesRoot, name }) {
-  const currentSummary = await summarizeState(codexHome);
+async function createProfileFromCurrent({ codexHome, profilesRoot, name, trackedFiles = TRACKED_FILES }) {
+  const currentSummary = await summarizeState(codexHome, { trackedFiles });
   if (!currentSummary.authMode && !currentSummary.apiKeyMasked && currentSummary.tokenKeys.length === 0) {
     throw new Error('当前 Codex 尚未检测到可保存的登录状态。请先在 Codex 里登录目标账号。');
   }
@@ -216,10 +215,10 @@ async function createProfileFromCurrent({ codexHome, profilesRoot, name }) {
   const profileDir = path.join(profilesRoot, id);
   const snapshotDir = path.join(profileDir, 'snapshot');
 
-  await copyTrackedFiles(codexHome, snapshotDir);
+  await copyTrackedFiles(codexHome, snapshotDir, { trackedFiles });
 
-  const summary = await summarizeState(snapshotDir);
-  const existingState = await listProfiles(profilesRoot, codexHome);
+  const summary = await summarizeState(snapshotDir, { trackedFiles });
+  const existingState = await listProfiles(profilesRoot, codexHome, { trackedFiles });
   const metadata = buildMetadataFromSummary({
     id,
     name: trimmedName,
@@ -238,7 +237,8 @@ async function createProfileFromAuth({
   profilesRoot,
   profileIdBase,
   auth,
-  name
+  name,
+  trackedFiles = TRACKED_FILES
 }) {
   await ensureDir(profilesRoot);
 
@@ -246,11 +246,11 @@ async function createProfileFromAuth({
   const profileDir = path.join(profilesRoot, id);
   const snapshotDir = path.join(profileDir, 'snapshot');
 
-  await copyTrackedFiles(codexHome, snapshotDir);
+  await copyTrackedFiles(codexHome, snapshotDir, { trackedFiles });
   await writeAuthFile(snapshotDir, auth);
 
-  const summary = await summarizeState(snapshotDir);
-  const existingState = await listProfiles(profilesRoot, codexHome);
+  const summary = await summarizeState(snapshotDir, { trackedFiles });
+  const existingState = await listProfiles(profilesRoot, codexHome, { trackedFiles });
   const metadata = buildMetadataFromSummary({
     id,
     name: name ?? id,
@@ -264,15 +264,21 @@ async function createProfileFromAuth({
   return metadata;
 }
 
-async function backupCurrentState({ codexHome, backupsRoot }) {
+async function backupCurrentState({ codexHome, backupsRoot, trackedFiles = TRACKED_FILES }) {
   await ensureDir(backupsRoot);
   const backupId = new Date().toISOString().replace(/[:.]/g, '-');
   const backupDir = path.join(backupsRoot, backupId);
-  await copyTrackedFiles(codexHome, backupDir);
+  await copyTrackedFiles(codexHome, backupDir, { trackedFiles });
   return backupDir;
 }
 
-async function applyProfile({ codexHome, profilesRoot, backupsRoot, profileId }) {
+async function applyProfile({
+  codexHome,
+  profilesRoot,
+  backupsRoot,
+  profileId,
+  trackedFiles = TRACKED_FILES
+}) {
   const profileDir = path.join(profilesRoot, profileId);
   const snapshotDir = path.join(profileDir, 'snapshot');
   const metadataPath = path.join(profileDir, 'metadata.json');
@@ -282,12 +288,12 @@ async function applyProfile({ codexHome, profilesRoot, backupsRoot, profileId })
     throw new Error('目标档案不存在。');
   }
 
-  const backupDir = await backupCurrentState({ codexHome, backupsRoot });
-  await copyTrackedFiles(snapshotDir, codexHome);
+  const backupDir = await backupCurrentState({ codexHome, backupsRoot, trackedFiles });
+  await copyTrackedFiles(snapshotDir, codexHome, { trackedFiles });
 
-  const refreshed = await summarizeState(snapshotDir);
+  const refreshed = await summarizeState(snapshotDir, { trackedFiles });
   const updatedMetadata = buildMetadataFromSummary({
-    id: metadata.id,
+    id: profileId,
     name: metadata.name,
     summary: refreshed,
     previousMetadata: metadata
@@ -316,6 +322,7 @@ async function renameProfile({ profilesRoot, profileId, newName }) {
 
   const updated = {
     ...metadata,
+    id: profileId,
     name: trimmedName,
     updatedAt: new Date().toISOString()
   };
@@ -386,7 +393,11 @@ async function updateProfileMetadata({ profilesRoot, profileId, mutate }) {
     throw new Error('目标档案不存在。');
   }
 
-  const updated = await mutate(metadata, profileDir);
+  const mutated = await mutate(metadata, profileDir);
+  const updated = {
+    ...mutated,
+    id: profileId
+  };
   await saveProfileMetadata(profileDir, updated);
   return updated;
 }

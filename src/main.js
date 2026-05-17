@@ -16,10 +16,18 @@ const {
   createProfileFromAuth,
   createProfileFromCurrent,
   deleteProfile,
+  getProfileSnapshotDir,
   listProfiles,
   reorderProfiles,
-  renameProfile
+  renameProfile,
+  TRACKED_FILES
 } = require('./core/profile-manager');
+const {
+  DEFAULT_APP_SETTINGS,
+  getTrackedFilesForSettings,
+  readAppSettings,
+  writeAppSettings
+} = require('./core/app-settings');
 const {
   enrichCurrentState,
   enrichProfiles
@@ -33,6 +41,10 @@ const {
 const codexHome = path.join(os.homedir(), '.codex');
 let activeOAuthFlow = null;
 let currentUsageCache = null;
+let appSettingsCache = { ...DEFAULT_APP_SETTINGS };
+let stateCache = null;
+let mainWindow = null;
+let isQuitting = false;
 let runtimeSummaryCache = {
   value: null,
   fetchedAt: 0
@@ -41,29 +53,75 @@ let runtimeSummaryCache = {
 const RUNTIME_CACHE_TTL_MS = 3000;
 
 function getProfilesRoot() {
-  return path.join(app.getPath('userData'), 'profiles');
+  return path.join(getEffectiveAppDataPath(), 'profiles');
+}
+
+function getUserDataPath() {
+  return app.getPath('userData');
+}
+
+function getEffectiveAppDataPath(settings = appSettingsCache) {
+  return settings?.appDataPath || getUserDataPath();
 }
 
 function getBackupsRoot() {
-  return path.join(app.getPath('userData'), 'backups');
+  return path.join(getEffectiveAppDataPath(), 'backups');
 }
 
-async function buildState() {
-  const profilesState = await listProfiles(getProfilesRoot(), codexHome);
-  const runtime = await getRuntimeSummaryCached();
-  const current = buildCurrentStateFromCache(profilesState.current);
-  const profiles = profilesState.profiles.map((profile) => ({
+async function loadAppSettings() {
+  appSettingsCache = await readAppSettings(getUserDataPath());
+  return appSettingsCache;
+}
+
+function getActiveTrackedFiles(settings = appSettingsCache) {
+  return getTrackedFilesForSettings(settings, TRACKED_FILES);
+}
+
+async function buildState(overrides = {}) {
+  const settings = appSettingsCache ?? await loadAppSettings();
+  const trackedFiles = getActiveTrackedFiles(settings);
+  const [profilesState, runtime] = await Promise.all([
+    overrides.profilesState
+      ? Promise.resolve(overrides.profilesState)
+      : listProfiles(getProfilesRoot(), codexHome, { trackedFiles }),
+    overrides.runtime
+      ? Promise.resolve(overrides.runtime)
+      : getRuntimeSummaryCached()
+  ]);
+  const current = overrides.current ?? buildCurrentStateFromCache(profilesState.current);
+  const sourceProfiles = overrides.profiles ?? profilesState.profiles;
+  const profiles = sourceProfiles.map((profile) => ({
     ...profile,
     isActive: current.identityKey != null && profile.identityKey === current.identityKey
   }));
 
-  return {
+  stateCache = {
     codexHome,
-    trackedFiles: require('./core/profile-manager').TRACKED_FILES,
+    defaultAppDataPath: getUserDataPath(),
+    appDataPath: getEffectiveAppDataPath(settings),
+    appVersion: `v${app.getVersion()}`,
+    settings,
+    trackedFiles,
     runtime,
     current,
     profiles
   };
+  return stateCache;
+}
+
+function updateCachedSettingsState(settings) {
+  if (!stateCache) {
+    return null;
+  }
+
+  stateCache = {
+    ...stateCache,
+    defaultAppDataPath: getUserDataPath(),
+    appDataPath: getEffectiveAppDataPath(settings),
+    settings,
+    trackedFiles: getActiveTrackedFiles(settings)
+  };
+  return stateCache;
 }
 
 function buildCurrentStateFromCache(currentSummary) {
@@ -126,21 +184,19 @@ async function getRuntimeSummaryCached({ force = false } = {}) {
 }
 
 async function refreshUsageState({ force = false } = {}) {
-  const profilesState = await listProfiles(getProfilesRoot(), codexHome);
+  const trackedFiles = getActiveTrackedFiles();
+  const profilesState = await listProfiles(getProfilesRoot(), codexHome, { trackedFiles });
   const [current, refreshedProfiles] = await Promise.all([
-    enrichCurrentState(codexHome),
-    enrichProfiles(getProfilesRoot(), profilesState.profiles, { force })
+    enrichCurrentState(codexHome, { trackedFiles }),
+    enrichProfiles(getProfilesRoot(), profilesState.profiles, { force, trackedFiles })
   ]);
   updateCurrentUsageCache(current);
 
-  return {
-    ...(await buildState()),
+  return buildState({
+    profilesState,
     current,
-    profiles: refreshedProfiles.map((profile) => ({
-      ...profile,
-      isActive: current.identityKey != null && profile.identityKey === current.identityKey
-    }))
-  };
+    profiles: refreshedProfiles
+  });
 }
 
 async function resolveOAuthClientId() {
@@ -198,14 +254,15 @@ async function importAuthJsonWithPicker() {
     profilesRoot: getProfilesRoot(),
     profileIdBase: profileBaseId,
     auth,
-    name: identity.email ?? identity.accountId ?? profileBaseId
+    name: identity.email ?? identity.accountId ?? profileBaseId,
+    trackedFiles: getActiveTrackedFiles()
   });
 
   return created;
 }
 
 function createMainWindow() {
-  const window = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1220,
     height: 860,
     minWidth: 980,
@@ -219,8 +276,15 @@ function createMainWindow() {
     }
   });
 
-  window.setMenuBarVisibility(false);
-  window.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.on('close', (event) => {
+    if (!isQuitting && appSettingsCache.closeBehavior === 'background') {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
 }
 
 ipcMain.handle('state:load', () => withErrorDialog(buildState));
@@ -234,7 +298,8 @@ ipcMain.handle('profile:create', async (_, payload) => {
     await createProfileFromCurrent({
       codexHome,
       profilesRoot: getProfilesRoot(),
-      name: payload?.name
+      name: payload?.name,
+      trackedFiles: getActiveTrackedFiles()
     });
     currentUsageCache = null;
     return buildState();
@@ -263,7 +328,8 @@ ipcMain.handle('profile:create-oauth', async () => {
         profilesRoot: getProfilesRoot(),
         profileIdBase: profileBaseId,
         auth,
-        name: profileBaseId
+        name: profileBaseId,
+        trackedFiles: getActiveTrackedFiles()
       });
 
       return {
@@ -342,6 +408,45 @@ ipcMain.handle('profile:delete', async (_, payload) => {
   });
 });
 
+ipcMain.handle('profile:export-auth', async (_, payload) => {
+  return withErrorDialog(async () => {
+    const profileId = String(payload?.profileId || '').trim();
+    const profileName = String(payload?.profileName || profileId || 'auth').trim();
+    if (!profileId) {
+      throw new Error('缺少档案 ID。');
+    }
+
+    const snapshotAuthPath = path.join(getProfileSnapshotDir(getProfilesRoot(), profileId), 'auth.json');
+    try {
+      await fs.access(snapshotAuthPath);
+    } catch {
+      throw new Error('该档案没有可导出的 auth.json。');
+    }
+
+    const safeName = profileName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, '-').slice(0, 80) || 'auth';
+    const result = await dialog.showSaveDialog({
+      title: '导出 auth.json',
+      defaultPath: `${safeName}-auth.json`,
+      filters: [
+        { name: 'JSON', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return {
+        cancelled: true
+      };
+    }
+
+    await fs.copyFile(snapshotAuthPath, result.filePath);
+    return {
+      cancelled: false,
+      filePath: result.filePath
+    };
+  });
+});
+
 ipcMain.handle('profile:apply', async (_, payload) => {
   return withErrorDialog(async () => {
     await stopCodexProcesses();
@@ -350,7 +455,8 @@ ipcMain.handle('profile:apply', async (_, payload) => {
       codexHome,
       profilesRoot: getProfilesRoot(),
       backupsRoot: getBackupsRoot(),
-      profileId: payload.profileId
+      profileId: payload.profileId,
+      trackedFiles: getActiveTrackedFiles()
     });
 
     if (payload.relaunch !== false) {
@@ -383,15 +489,76 @@ ipcMain.handle('folder:open-profiles', async () => {
   await shell.openPath(getProfilesRoot());
 });
 
-app.whenReady().then(() => {
+ipcMain.handle('folder:open-user-data', async () => {
+  await shell.openPath(getEffectiveAppDataPath());
+});
+
+ipcMain.handle('folder:choose-app-data', async () => {
+  const result = await dialog.showOpenDialog({
+    title: '选择应用数据存储位置',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || !result.filePaths.length) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
+
+ipcMain.handle('shell:open-external', async (_, payload) => {
+  const url = String(payload?.url || '');
+  if (!/^https:\/\//i.test(url)) {
+    throw new Error('只能打开 HTTPS 链接。');
+  }
+  await shell.openExternal(url);
+});
+
+ipcMain.handle('settings:save', async (_, payload) => {
+  return withErrorDialog(async () => {
+    const previousSettings = appSettingsCache;
+    appSettingsCache = await writeAppSettings(getUserDataPath(), payload?.settings);
+    app.setLoginItemSettings({
+      openAtLogin: appSettingsCache.launchAtStartup
+    });
+
+    const requiresProfileReload = previousSettings.appDataPath !== appSettingsCache.appDataPath
+      || previousSettings.configTomlMode !== appSettingsCache.configTomlMode;
+
+    if (!requiresProfileReload) {
+      const cached = updateCachedSettingsState(appSettingsCache);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    currentUsageCache = null;
+    return buildState();
+  });
+});
+
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
+  await loadAppSettings();
+  app.setLoginItemSettings({
+    openAtLogin: appSettingsCache.launchAtStartup
+  });
   createMainWindow();
 
   app.on('activate', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      return;
+    }
+
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
