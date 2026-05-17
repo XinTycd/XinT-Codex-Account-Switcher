@@ -1,32 +1,17 @@
 {
   "name": "codex-account-switcher",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Windows desktop switcher for Codex app accounts",
-  "author": "Codex",
+  "author": "XinTycd",
   "license": "MIT",
-  "main": "src/main.js",
   "scripts": {
-    "start": "electron .",
-    "test": "node --test",
-    "package": "electron-builder --win portable",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& \\\"$env:USERPROFILE\\\\go\\\\bin\\\\wails.exe\\\" dev\"",
+    "dev:web": "npm --prefix frontend run dev",
+    "build:web": "npm --prefix frontend run build",
+    "test": "go test ./...",
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:Path='C:\\\\Program Files (x86)\\\\NSIS;C:\\\\Program Files (x86)\\\\NSIS\\\\Bin;' + $env:Path; & \\\"$env:USERPROFILE\\\\go\\\\bin\\\\wails.exe\\\" build -nsis; $src='build\\\\bin\\\\XinT Codex Account Switcher-amd64-installer.exe'; $dst='build\\\\bin\\\\XinT-Codex-Account-Switcher-v1.0.0-installer-amd64.exe'; if (Test-Path $src) { Copy-Item $src $dst -Force }\"",
+    "package:installer": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:Path='C:\\\\Program Files (x86)\\\\NSIS;C:\\\\Program Files (x86)\\\\NSIS\\\\Bin;' + $env:Path; & \\\"$env:USERPROFILE\\\\go\\\\bin\\\\wails.exe\\\" build -nsis; $src='build\\\\bin\\\\XinT Codex Account Switcher-amd64-installer.exe'; $dst='build\\\\bin\\\\XinT-Codex-Account-Switcher-v1.0.0-installer-amd64.exe'; if (Test-Path $src) { Copy-Item $src $dst -Force }\"",
+    "package:portable": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& \\\"$env:USERPROFILE\\\\go\\\\bin\\\\wails.exe\\\" build -clean\"",
     "generate:icon": "powershell -ExecutionPolicy Bypass -File scripts/generate-app-icon.ps1"
-  },
-  "build": {
-    "appId": "com.xint.codex-account-switcher",
-    "productName": "XinT Codex Account Switcher",
-    "files": [
-      "src/**/*",
-      "package.json"
-    ],
-    "win": {
-      "icon": "assets/app-icon.ico",
-      "target": [
-        "portable"
-      ]
-    }
-  },
-  "devDependencies": {
-    "electron": "^37.0.0",
-    "electron-builder": "^26.0.12"
   }
 }

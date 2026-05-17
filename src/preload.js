@@ -13,8 +13,14 @@ contextBridge.exposeInMainWorld('codexSwitcher', {
     ipcRenderer.invoke('profile:rename', { profileId, newName }),
   reorderProfiles: (profileIds) => ipcRenderer.invoke('profile:reorder', { profileIds }),
   deleteProfile: (profileId) => ipcRenderer.invoke('profile:delete', { profileId }),
+  exportAuthJson: (profileId, profileName) =>
+    ipcRenderer.invoke('profile:export-auth', { profileId, profileName }),
   applyProfile: (profileId, relaunch = true) =>
     ipcRenderer.invoke('profile:apply', { profileId, relaunch }),
   restartCodex: () => ipcRenderer.invoke('codex:restart'),
-  openProfilesFolder: () => ipcRenderer.invoke('folder:open-profiles')
+  openProfilesFolder: () => ipcRenderer.invoke('folder:open-profiles'),
+  openUserDataFolder: () => ipcRenderer.invoke('folder:open-user-data'),
+  chooseAppDataFolder: () => ipcRenderer.invoke('folder:choose-app-data'),
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', { url }),
+  saveSettings: (settings) => ipcRenderer.invoke('settings:save', { settings })
 });

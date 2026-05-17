@@ -29,14 +29,17 @@ function hasFreshUsage(metadata, ttlMs = USAGE_CACHE_TTL_MS) {
   return Date.now() - usageUpdatedAtMs < ttlMs;
 }
 
-async function refreshAuthAndUsage(codexHome, { persistAuth = false } = {}) {
+async function refreshAuthAndUsage(codexHome, {
+  persistAuth = false,
+  trackedFiles
+} = {}) {
   let auth = await readAuthFile(codexHome);
   if (!auth) {
     return {
       auth: null,
       usage: null,
       usageError: '未找到 auth.json。',
-      summary: await summarizeState(codexHome)
+      summary: await summarizeState(codexHome, { trackedFiles })
     };
   }
 
@@ -52,7 +55,7 @@ async function refreshAuthAndUsage(codexHome, { persistAuth = false } = {}) {
       auth,
       usage: null,
       usageError: error.message,
-      summary: await summarizeState(codexHome)
+      summary: await summarizeState(codexHome, { trackedFiles })
     };
   }
 
@@ -72,12 +75,12 @@ async function refreshAuthAndUsage(codexHome, { persistAuth = false } = {}) {
     auth,
     usage,
     usageError,
-    summary: await summarizeState(codexHome)
+    summary: await summarizeState(codexHome, { trackedFiles })
   };
 }
 
-async function enrichCurrentState(codexHome) {
-  const result = await refreshAuthAndUsage(codexHome, { persistAuth: true });
+async function enrichCurrentState(codexHome, { trackedFiles } = {}) {
+  const result = await refreshAuthAndUsage(codexHome, { persistAuth: true, trackedFiles });
   return {
     ...result.summary,
     usage: result.usage,
@@ -85,12 +88,15 @@ async function enrichCurrentState(codexHome) {
   };
 }
 
-async function enrichProfile(profilesRoot, profile, { force = false } = {}) {
+async function enrichProfile(profilesRoot, profile, {
+  force = false,
+  trackedFiles
+} = {}) {
   const snapshotDir = getProfileSnapshotDir(profilesRoot, profile.id);
   if (!force && hasFreshUsage(profile)) {
     return profile;
   }
-  const result = await refreshAuthAndUsage(snapshotDir, { persistAuth: true });
+  const result = await refreshAuthAndUsage(snapshotDir, { persistAuth: true, trackedFiles });
 
   return updateProfileMetadata({
     profilesRoot,
@@ -127,7 +133,8 @@ async function mapWithConcurrency(items, concurrency, mapper) {
 async function enrichProfiles(profilesRoot, profiles, {
   force = false,
   ttlMs = USAGE_CACHE_TTL_MS,
-  concurrency = USAGE_REFRESH_CONCURRENCY
+  concurrency = USAGE_REFRESH_CONCURRENCY,
+  trackedFiles
 } = {}) {
   const targets = force
     ? profiles
@@ -139,7 +146,7 @@ async function enrichProfiles(profilesRoot, profiles, {
   const refreshed = await mapWithConcurrency(
     targets,
     concurrency,
-    (profile) => enrichProfile(profilesRoot, profile, { force })
+    (profile) => enrichProfile(profilesRoot, profile, { force, trackedFiles })
   );
   const refreshedById = new Map(refreshed.map((profile) => [profile.id, profile]));
 
